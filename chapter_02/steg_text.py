@@ -37,7 +37,7 @@ def Encode(mfile, pfile, ofile):
     msg = ProcessText(open(mfile).read())
     pool= ProcessText(open(pfile).read())
     key = RE(mode='int', low=10000, high=1000000).random()
-    rng = RE(mode='int', low=1, high=5, seed=key)
+    rng = RE(mode='int', low=0, high=5, seed=key)
     
     enc = []
     idx = 0
@@ -67,7 +67,7 @@ def Decode(key, ofile, mfile):
     """Decode a message file"""
 
     enc = ProcessText(open(ofile).read())
-    rng = RE(mode='int', low=1, high=5, seed=key)
+    rng = RE(mode='int', low=0, high=5, seed=key)
     plain = ""
 
     for w in enc:
