@@ -101,7 +101,7 @@ def Encode(key, sfile, dfile, pfile):
     #  Load message file and prefix length
     src = np.fromfile(sfile, dtype="uint8")
     srcsize = len(src)
-    stepsize = (poolsize-256)//(256*srcsize)
+    stepsize = (poolsize-256)//(8*srcsize)
     if (stepsize < 3):
         #  Check whether stepsize makes sense
         print("Pool file is too small")
