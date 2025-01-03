@@ -50,7 +50,7 @@ def MessageLength(bits):
     """Convert bits to uint32 message length"""
 
     b = MakeByte(np.array(bits))
-    n = 256**3*b[0] + 256**2*b[1] + 256*b[2] + b[3]
+    n = 256**3*int(b[0]) + 256**2*int(b[1]) + 256*int(b[2]) + int(b[3])
     return n
 
 
@@ -65,17 +65,19 @@ def Decode(key, sfile, dfile):
 
     #  The first four bytes are the message length
     rng = RE(mode="int", low=1, high=16, seed=key)
-    step = rng.random(32)
+    step = rng.random(64)
     bits = []
     idx = [step[0]]
     for i in range(1, len(step)):
         idx.append(idx[-1]+step[i])
     for i in range(len(idx)):
         bits.append(src[idx[i]])
-    n = MessageLength(bits)
+    n = MessageLength(bits[:32]) # message length
+    l = MessageLength(bits[32:]) # step size
 
     #  Read that many bits continuing from last position
     offset = idx[-1]
+    rng = RE(mode="int", low=1, high=l, seed=key)
     step = rng.random(8*n)
     idx = [offset + step[0]]
     bits = []
@@ -93,23 +95,34 @@ def Decode(key, sfile, dfile):
 def Encode(key, sfile, dfile, pfile):
     """Hide a message"""
     
+    # Load pool file early to get its length
+    pool = MakeBit(np.fromfile(pfile, dtype="uint8"))
+    poolsize = len(pool)
     #  Load message file and prefix length
     src = np.fromfile(sfile, dtype="uint8")
+    srcsize = len(src)
+    stepsize = (poolsize-256)//(256*srcsize)
+    if (stepsize < 3):
+        #  Check whether stepsize makes sense
+        print("Pool file is too small")
+        exit(1)
     s = format(len(src), "08x")
+    steps = format(stepsize, "08x")
     b3 = int(s[0:2],16);  b2 = int(s[2:4],16)
     b1 = int(s[4:6],16);  b0 = int(s[6:8],16)
-    src = MakeBit(np.hstack(([b3,b2,b1,b0],src)))
+    l3 = int(steps[0:2],16);  l2 = int(steps[2:4],16)
+    l1 = int(steps[4:6],16);  l0 = int(steps[6:8],16)
+    src = MakeBit(np.hstack(([b3,b2,b1,b0,l3,l2,l1,l0],src)))
 
     #  Get random steps based on supplied key
-    step = RE(mode="int", low=1, high=16, seed=key).random(len(src))
+    step = RE(mode="int", low=1, high=16, seed=key).random(64)
     idx = [step[0]]
     for i in range(1, len(step)):
         idx.append(idx[-1]+step[i])
+    step = RE(mode="int", low=1, high=stepsize, seed=key).random(len(src)-64)
+    for si in step:
+        idx.append(idx[-1]+si)
     
-    pool = MakeBit(np.fromfile(pfile, dtype="uint8"))
-    if (len(pool) <= idx[-1]):
-        print("Pool file is too small")
-        exit(1)
 
     #  Alter bits by steps to match source file
     for i in range(len(src)):
